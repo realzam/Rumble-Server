@@ -1,14 +1,13 @@
 import express from 'express';
 import * as http from 'http';
 import * as sockio from 'socket.io';
-import * as path from 'path';
 import cors from 'cors';
-import Socket from './Socket';
 import dbConnection from '../database/config';
-import routerGame from '../router/games';
-// import validarJson from '../middlewares/validar-json';
+import routerBase from '../router/base';
 import errorHandleMiddleware from '../middlewares/error-handle';
 import notFound from '../controllers/notFound';
+import ahorcadoSokect from '../sockets/ahorcado';
+import testSocket from '../sockets/test';
 
 class Server {
   private app = express();
@@ -26,14 +25,13 @@ class Server {
   public execute() {
     this.middlewares();
     this.server.listen(this.port, () => {
-      console.log(`Server correindo en puerto XD XD XD: ${this.port}`);
+      console.log(`Server correindo en puerto: ${this.port}`);
     });
     this.configurarSockets();
     dbConnection();
   }
 
   private middlewares() {
-    this.app.use(express.static(path.resolve(__dirname, '..', 'public')));
     // CORS
     this.app.use(cors());
     // Parsebody
@@ -41,14 +39,21 @@ class Server {
     this.app.use(errorHandleMiddleware);
     // this.app.use(express.urlencoded());
     // Routers
-    this.app.use('/api/games', routerGame);
+    this.app.use('/api', routerBase);
     // 404 Controller
     this.app.use(notFound);
   }
 
   private configurarSockets() {
-    // eslint-disable-next-line no-new
-    new Socket(this.io);
+    const ahorcado = this.io.of('/ahorcado');
+    ahorcado.on('connection', (socket: sockio.Socket) => {
+      ahorcadoSokect(socket, ahorcado);
+    });
+
+    const test = this.io.of('/test');
+    test.on('connection', (socket: sockio.Socket) => {
+      testSocket(socket, test);
+    });
   }
 }
 

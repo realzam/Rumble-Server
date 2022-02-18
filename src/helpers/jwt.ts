@@ -1,18 +1,8 @@
 import jwt from 'jsonwebtoken';
+import { JWTPayloadArgs, JWTPayload } from '../types/types';
 
-interface IPayload {
-  uid: string;
-  role: string;
-  nick: string;
-}
-
-const generarJWT = (
-  sala: string,
-  role: string,
-  nick: string,
-): Promise<string> => {
+const generarJWT = (payload: JWTPayloadArgs): Promise<string> => {
   return new Promise<string>((resolve, reject) => {
-    const payload = { sala, role, nick };
     jwt.sign(
       payload,
       process.env.JWT_KEY,
@@ -30,12 +20,22 @@ const generarJWT = (
   });
 };
 
-const comprobarJWT = (token = ''): [boolean, string] => {
+const comprobarJWT = (
+  token: string,
+  options?: jwt.VerifyOptions & {
+    complete?: false | undefined;
+  },
+): JWTPayload | null => {
   try {
-    const { uid } = jwt.verify(token, process.env.JWT_KEY) as IPayload;
-    return [true, uid];
+    const tokenVal = jwt.verify(
+      token,
+      process.env.JWT_KEY,
+      options,
+    ) as JWTPayload;
+    return tokenVal;
   } catch (error) {
-    return [false, ''];
+    console.log('comprobarJWT', error);
+    return null;
   }
 };
 

@@ -1,10 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, NextFunction } from 'express';
 import { CreateHttpError } from 'http-errors';
+import { ErrorResponse } from '../types/types';
 
 const errorHandleMiddleware = (
   error: CreateHttpError,
   req: Request,
-  res: Response,
+  res: ErrorResponse,
   next: NextFunction,
 ) => {
   console.log('Error Handling Middleware called');
@@ -13,16 +14,8 @@ const errorHandleMiddleware = (
   console.log('Path: ', req.body);
   if (error.type === 'entity.parse.failed') {
     res.status(400).json({
-      status: 400,
       ok: false,
-      errors: [
-        {
-          value: error.body,
-          param: '',
-          location: 'body',
-          msg: 'SyntaxError|Invalid JSON',
-        },
-      ],
+      error: 'SyntaxError|Invalid JSON',
     });
   } else {
     next();

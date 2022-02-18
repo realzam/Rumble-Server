@@ -1,36 +1,73 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, Model } from 'mongoose';
 
-interface PlayerDocument extends Document {
-  auth: string;
+interface PlayerFunctions {
+  agregarPuntos(points: number): Promise<void>;
+  toJSON(): PlayerInstance;
+}
+export type Player = {
   nick: string;
   role: string;
-}
+  sala: string;
+  points: number;
+  online: boolean;
+  uid: string;
+};
 
-const PlayerSchema = new Schema({
-  auth: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  role: {
-    type: String,
-    required: true,
-  },
-  nick: {
-    type: String,
-    required: true,
-  },
-  online: {
-    type: Boolean,
-    default: false,
-  },
-});
+type IPlayer = Player &
+  PlayerFunctions & {
+    password: string;
+  };
 
-PlayerSchema.methods.toJSON = function toJSON(this: PlayerDocument) {
+export type PlayerInstance = Player &
+  PlayerFunctions &
+  Document & {
+    password: string;
+  };
+
+const PlayerSchema = new Schema<
+  IPlayer,
+  Model<IPlayer, any, PlayerFunctions>,
+  PlayerFunctions
+>(
+  {
+    password: String,
+    sala: {
+      type: String,
+      required: true,
+    },
+    points: {
+      type: Number,
+      default: 0,
+    },
+    online: {
+      type: Boolean,
+      default: false,
+    },
+    role: {
+      type: String,
+      required: true,
+    },
+    nick: {
+      type: String,
+      required: true,
+    },
+  },
+  { versionKey: false },
+);
+
+PlayerSchema.methods.toJSON = function toJSON(this: PlayerInstance) {
+  this.uid = this._id.toString();
   delete this.__v;
-  delete this._id;
   return this;
 };
 
-const PlayerModel = model<PlayerDocument>('Player', PlayerSchema);
+PlayerSchema.methods.agregarPuntos = async function agregarPuntos(
+  this: PlayerInstance,
+  points: number,
+) {
+  this.points += points;
+  await this.save();
+};
+
+const PlayerModel = model<IPlayer>('Player', PlayerSchema);
 export default PlayerModel;

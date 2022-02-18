@@ -1,10 +1,11 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { check } from 'express-validator';
-import { crearSala, ingresarSala } from '../controllers/games';
+import { crearSala, ingresarSala, renewToken } from '../controllers/base';
 import validarCampos from '../middlewares/validar-campos';
+import validarJWTMiddleware from '../middlewares/validar-jwt';
 
 const router = Router();
-router.get(
+router.post(
   '/crear',
   [
     check('nick', 'El nickame es obligatorio').notEmpty(),
@@ -14,7 +15,7 @@ router.get(
   crearSala,
 );
 
-router.get(
+router.post(
   '/ingresar',
   [
     check('nick', 'El nickame es obligatorio').notEmpty(),
@@ -23,5 +24,17 @@ router.get(
   ],
   ingresarSala,
 );
+
+router.get('/validar', [validarJWTMiddleware], renewToken);
+
+const a = async (
+  req: express.Request,
+  res: express.Response,
+): Promise<express.Response> => {
+  console.log(req.body);
+  return res.json({ ok: true });
+};
+
+router.get('/xd', a);
 
 export default router;

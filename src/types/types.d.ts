@@ -4,3 +4,9 @@ declare module 'http-errors' {
     type: string;
   };
 }
+
+declare namespace Express {
+  export interface Request {
+    token: string;
+  }
+}
