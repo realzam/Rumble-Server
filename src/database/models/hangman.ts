@@ -1,93 +1,102 @@
-import { Schema, model, Types, Model, Document } from 'mongoose';
+import { Schema, Types } from 'mongoose';
+import { Player } from './player';
 
-interface HangmanFunc {
-  initLetters(): Promise<void>;
-  discoverLetter(letter: string): Promise<number>;
-  setSecret(secret: string): Promise<void>;
-}
+export type StatusHangman = 'waitting word' | 'waitting letter' | 'stoped';
 
-export type Hangman = HangmanFunc & {
+export interface Hangman {
+  status: StatusHangman;
   letters: string[];
   lettersDisable: number[];
   secret: string[];
   turnWord: number;
   turnLetter: number;
-  playerOrder: [Types.ObjectId];
-  vidas: number;
+  lifes: number;
   playerWord: string;
   playerLetter: string;
-};
+}
+export type HangmanInstance = Types.Subdocument<Types.ObjectId> & Hangman;
 
-export type HangmanDocument = Hangman & Document;
+export class HangmanClass {
+  status: StatusHangman = 'waitting word';
 
-const HangmanSchema = new Schema<Hangman, Model<Hangman>, HangmanFunc>({
+  letters: string[] = [];
+
+  lettersDisable: number[] = [];
+
+  secret: string[] = [];
+
+  turnWord = 0;
+
+  turnLetter = 0;
+
+  lifes = 7;
+
+  playerWord = '';
+
+  playerLetter = '';
+
+  public setSecret(word: string) {
+    const w = word
+      .replaceAll(/\s+/g, ' ')
+      .replaceAll(/[^a-zA-Z ]/g, '')
+      .trim()
+      .toUpperCase();
+
+    this.secret = w.split('');
+
+    this.letters = w.replaceAll(/[A-Z]/g, '$').split('');
+  }
+
+  public nextWordPlayer(players: Types.DocumentArray<Player>) {
+    let i = this.turnWord;
+    do {
+      if (i >= players.length) {
+        i = 0;
+      }
+      // console.log('test', i);
+      const player = players[i];
+      i += 1;
+      if (player.online) {
+        this.turnLetter = i;
+        this.playerWord = (player._id as Types.ObjectId).toString();
+        return true;
+      }
+    } while (i !== this.turnWord);
+    this.status = 'stoped';
+    return false;
+  }
+
+  public nextLetterPlayer(players: Types.DocumentArray<Player>) {
+    let i = this.turnLetter;
+    do {
+      if (i >= players.length) {
+        i = 0;
+      }
+      // console.log('test', i);
+      const player = players[i];
+      i += 1;
+      if (player.online) {
+        const id = (player._id as Types.ObjectId).toString();
+        if (id !== this.playerWord) {
+          this.turnLetter = i;
+          this.playerLetter = id;
+          return true;
+        }
+      }
+    } while (i !== this.turnLetter);
+    this.status = 'stoped';
+    return false;
+  }
+}
+
+export const HangmanSchema = new Schema<Hangman>({
   letters: [String],
   lettersDisable: { type: [Number], default: [] },
   secret: [String],
   turnWord: { type: Number, default: 0 },
   turnLetter: { type: Number, default: 0 },
-  vidas: { type: Number, default: 7 },
+  lifes: { type: Number, default: 7 },
   playerWord: String,
   playerLetter: String,
+  status: String,
 });
-
-HangmanSchema.methods.initLetters = async function initLetters(
-  this: HangmanDocument,
-) {
-  const letters: string[] = this.secret
-    .join('')
-    .replaceAll(/[A-Z]/g, '$')
-    .split('');
-  this.letters = letters;
-  await this.save();
-};
-
-HangmanSchema.methods.setSecret = async function setScret(
-  this: HangmanDocument,
-  secret: string,
-) {
-  const w = secret
-    .replaceAll(/\s+/g, ' ')
-    .replaceAll(/[^a-zA-Z ]/g, '')
-    .trim()
-    .toUpperCase()
-    .split('');
-
-  this.secret = w;
-  await this.save();
-  this.initLetters();
-};
-
-HangmanSchema.methods.discoverLetter = async function discoverLetter(
-  this: HangmanDocument,
-  letter: string,
-) {
-  let points = 0;
-  let addPoints = 0;
-  const vocals = letter.match(/[AUIOU]/g);
-  if (vocals !== null && vocals.length > 0) {
-    addPoints = 1;
-  } else {
-    addPoints = 5;
-  }
-  for (let i = 0; i < this.secret.length; i += 1) {
-    const element = this.secret[i];
-    if (element === letter) {
-      this.letters[i] = element;
-      points += addPoints;
-    }
-  }
-  if (points === 0) {
-    this.vidas -= 1;
-  }
-  if (this.vidas === 0) {
-    this.letters = this.secret;
-  }
-  this.lettersDisable.push(letter.charCodeAt(0));
-  await this.save();
-  return points;
-};
-
-const HangmanModel = model<Hangman>('Hangman', HangmanSchema);
-
-export default HangmanModel;

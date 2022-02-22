@@ -9,6 +9,7 @@ router.post(
   '/crear',
   [
     check('nick', 'El nickame es obligatorio').notEmpty(),
+    check('password', 'El password es obligatorio').notEmpty(),
     check('game', 'El game es obligatorio').isNumeric(),
     validarCampos,
   ],
@@ -19,6 +20,7 @@ router.post(
   '/ingresar',
   [
     check('nick', 'El nickame es obligatorio').notEmpty(),
+    check('password', 'El password es obligatorio').notEmpty(),
     check('sala', 'El sala es obligatorio').notEmpty(),
     validarCampos,
   ],

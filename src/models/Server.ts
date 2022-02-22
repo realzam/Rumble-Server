@@ -7,7 +7,7 @@ import routerBase from '../router/base';
 import errorHandleMiddleware from '../middlewares/error-handle';
 import notFound from '../controllers/notFound';
 import ahorcadoSokect from '../sockets/ahorcado';
-import testSocket from '../sockets/test';
+import { comprobarJWT } from '../helpers/jwt';
 
 class Server {
   private app = express();
@@ -46,13 +46,17 @@ class Server {
 
   private configurarSockets() {
     const ahorcado = this.io.of('/ahorcado');
-    ahorcado.on('connection', (socket: sockio.Socket) => {
-      ahorcadoSokect(socket, ahorcado);
+    ahorcado.use((socket, next) => {
+      const token = comprobarJWT(socket.handshake.query['x-token'] as string);
+      if (!token) {
+        console.log('Sokect no identificado');
+        socket.disconnect();
+      }
+      next();
     });
 
-    const test = this.io.of('/test');
-    test.on('connection', (socket: sockio.Socket) => {
-      testSocket(socket, test);
+    ahorcado.on('connection', (socket: sockio.Socket) => {
+      ahorcadoSokect(socket, ahorcado);
     });
   }
 }

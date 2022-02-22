@@ -1,12 +1,13 @@
 import bcrypt from 'bcryptjs';
+import { Types } from 'mongoose';
 import { nanoid } from 'nanoid';
 import { Request } from 'express';
 import { comprobarJWT, generarJWT } from '../helpers/jwt';
 import { getNameSpace } from '../helpers/util';
 import { MyRequest, MyResponse } from '../types/types';
-import PlayerModel from '../database/models/player';
 import RoomModel from '../database/models/room';
-import HangmanModel from '../database/models/hangman';
+import { PlayerInstance } from '../database/models/player';
+import { HangmanClass, HangmanInstance } from '../database/models/hangman';
 
 interface IbodyCrearSala {
   nick: string;
@@ -32,28 +33,27 @@ const crearSala = async (req: MyRequest<IbodyCrearSala>, res: MyResponse) => {
   }
   const salt = await bcrypt.genSalt(11);
   const hash = await bcrypt.hash(password, salt);
-  const player = new PlayerModel({
+  const player = {
     nick,
     role: 'Host',
     sala: id,
     password: hash,
-  });
-  await player.save();
-
-  const hangmanData = new HangmanModel();
-  await hangmanData.save();
+  };
 
   const sala = new RoomModel({
     id,
-    players: [player._id],
     namespace,
-    gameData: hangmanData._id,
   });
+  sala.players.push(player);
+  const h = new HangmanClass();
+  sala.gameData = {} as HangmanInstance;
+  sala.gameData.set(h);
   await sala.save();
+  const uid = sala.players[0]._id as Types.ObjectId;
 
   const token = await generarJWT({
     nick,
-    uid: player._id.toString(),
+    uid: uid.toString(),
     game: namespace,
     role: 'Host',
     sala: id,
@@ -79,7 +79,8 @@ const ingresarSala = async (
   const existPlayer = await s.playerExist(nick);
 
   if (existPlayer) {
-    const p = await s.getPlayerFromNick(nick);
+    const p = s.getPlayerByNick(nick) as PlayerInstance;
+    const uid = p._id as Types.ObjectId;
     const okPassword = await bcrypt.compare(password, p.password);
     if (okPassword) {
       const token = await generarJWT({
@@ -87,7 +88,7 @@ const ingresarSala = async (
         nick,
         role: p.role,
         game: s.namespace,
-        uid: p._id.toString(),
+        uid: uid.toString(),
       });
       return res.json({
         ok: true,
@@ -103,21 +104,24 @@ const ingresarSala = async (
 
   const salt = await bcrypt.genSalt(11);
   const hash = await bcrypt.hash(password, salt);
-  const player = new PlayerModel({
+  const player = {
     nick,
-    role: 'player',
+    role: 'Player',
     sala: s.id,
     password: hash,
-  });
-  await player.save();
-  await s.agregarPlayer(player._id, player.nick);
+  };
+
+  const pos = s.players.push(player) - 1;
+  await s.save();
+
+  const uid = s.players[pos]._id as Types.ObjectId;
 
   const token = await generarJWT({
     sala,
     nick,
     role: 'Player',
     game: s.namespace,
-    uid: player._id.toString(),
+    uid: uid.toString(),
   });
   return res.json({
     ok: true,

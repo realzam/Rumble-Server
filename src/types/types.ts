@@ -1,22 +1,6 @@
 import express from 'express';
 import { Send } from 'express-serve-static-core';
 
-interface Game {
-  id: number;
-  namespace: string;
-}
-
-interface Games {
-  [key: number]: Game;
-}
-
-const gamesTypes: Games = {
-  0: {
-    id: 0,
-    namespace: 'hangman',
-  },
-};
-
 type ErrorJson = {
   ok: false;
   error: string;
@@ -46,13 +30,13 @@ export interface MyResponse extends express.Response {
 export interface JWTPayload {
   uid: string;
   sala: string;
-  role: string;
+  role: 'Host' | 'Player';
   nick: string;
   game: string;
   iat: number;
   exp: number;
 }
 
-export type JWTPayloadArgs = Omit<JWTPayload, 'iat' | 'exp'>;
+export type Games = 'Hangman';
 
-export { gamesTypes };
+export type JWTPayloadArgs = Omit<JWTPayload, 'iat' | 'exp'>;

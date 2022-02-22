@@ -1,9 +1,8 @@
-import { gamesTypes } from '../types/types';
-
-const getNameSpace = (id: number): null | string => {
-  return gamesTypes[id].namespace;
+export const getNameSpace = (id: number): null | string => {
+  const games = ['Hangman'];
+  return games[id];
 };
 
-const getNameSpace2 = () => {};
-
-export { getNameSpace, getNameSpace2 };
+export const delay = (time: number) =>
+  // eslint-disable-next-line no-promise-executor-return
+  new Promise((resolve) => setTimeout(resolve, time));

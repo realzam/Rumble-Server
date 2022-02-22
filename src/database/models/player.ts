@@ -1,73 +1,43 @@
-import { Schema, model, Document, Model } from 'mongoose';
+import { Schema, Types } from 'mongoose';
 
-interface PlayerFunctions {
-  agregarPuntos(points: number): Promise<void>;
-  toJSON(): PlayerInstance;
-}
 export type Player = {
   nick: string;
-  role: string;
+  role: 'Host' | 'Player';
   sala: string;
   points: number;
   online: boolean;
-  uid: string;
+  password: string;
 };
 
-type IPlayer = Player &
-  PlayerFunctions & {
-    password: string;
-  };
+export type PlayerInstance = Types.Subdocument<Types.ObjectId> & Player;
 
-export type PlayerInstance = Player &
-  PlayerFunctions &
-  Document & {
-    password: string;
-  };
-
-const PlayerSchema = new Schema<
-  IPlayer,
-  Model<IPlayer, any, PlayerFunctions>,
-  PlayerFunctions
->(
-  {
-    password: String,
-    sala: {
-      type: String,
-      required: true,
-    },
-    points: {
-      type: Number,
-      default: 0,
-    },
-    online: {
-      type: Boolean,
-      default: false,
-    },
-    role: {
-      type: String,
-      required: true,
-    },
-    nick: {
-      type: String,
-      required: true,
-    },
+export const PlayerSchema = new Schema<Player>({
+  password: String,
+  sala: {
+    type: String,
+    required: true,
   },
-  { versionKey: false },
-);
+  points: {
+    type: Number,
+    default: 0,
+  },
+  online: {
+    type: Boolean,
+    default: false,
+  },
+  role: {
+    type: String,
+    required: true,
+  },
+  nick: {
+    type: String,
+    required: true,
+  },
+});
 
 PlayerSchema.methods.toJSON = function toJSON(this: PlayerInstance) {
-  this.uid = this._id.toString();
-  delete this.__v;
-  return this;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  const { password, _id, ...ob } = this.toObject();
+  const uid = (_id as Types.ObjectId).toString();
+  return { ...ob, uid };
 };
-
-PlayerSchema.methods.agregarPuntos = async function agregarPuntos(
-  this: PlayerInstance,
-  points: number,
-) {
-  this.points += points;
-  await this.save();
-};
-
-const PlayerModel = model<IPlayer>('Player', PlayerSchema);
-export default PlayerModel;
