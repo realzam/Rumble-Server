@@ -131,6 +131,7 @@ const ingresarSala = async (
 
 const renewToken = async (req: Request, res: MyResponse) => {
   try {
+    console.log('renewToken');
     let { token } = req;
     // Generar new JWT
     const tokenObj = comprobarJWT(token);

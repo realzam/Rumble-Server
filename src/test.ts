@@ -1,26 +1,36 @@
-import * as dotenv from 'dotenv';
-import dbConnection from './database/config';
-import RoomModel, { RoomInstance } from './database/models/room';
-import { HangmanClass } from './database/models/hangman';
-
-dotenv.config();
-
-async function main() {
-  console.log('hola test');
-  dbConnection();
-  const room = (await RoomModel.findById(
-    '621438d500375e7557d1b752',
-  )) as RoomInstance;
-  console.log('Hola mundo', room.toObject().gameData);
-  // const ha = Object.assign(new HangmanClass(), room.toObject().gameData);
-  // ha.setSecret('Your Lie in April');
-  // ha.lifes = 87;
-  // ha.playerLetter = 'DEMACIA';
-  const ha = new HangmanClass();
-  room.gameData.set(ha);
-  await room.save();
-  console.log('Hola mundo', room.toObject().gameData);
-  // console.log(han);
+interface Player {
+  nick: string;
+  online: boolean;
 }
 
-main();
+function nextLetterPlayer(p: Player[], turn: number) {
+  const players = p.slice(0);
+  let i = turn;
+  do {
+    const player = players[i];
+    if (player.online) {
+      const turnf = (i + 1) % players.length;
+      console.log(turnf, player.nick);
+      return true;
+    }
+    i += 1;
+    if (i >= players.length) {
+      i = 0;
+    }
+  } while (i !== turn);
+  console.log('stoped');
+  return false;
+}
+
+const playersCheck: Player[] = [
+  { nick: 'A', online: false },
+  { nick: 'B', online: false },
+  { nick: 'C', online: false },
+  { nick: 'D', online: false },
+  { nick: 'E', online: false },
+  { nick: 'F', online: false },
+  { nick: 'G', online: false },
+  { nick: 'H', online: false },
+];
+
+nextLetterPlayer(playersCheck, 1);

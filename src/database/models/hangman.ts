@@ -1,5 +1,6 @@
 import { Schema, Types } from 'mongoose';
 import { Player } from './player';
+import { isVowel } from '../../helpers/util';
 
 export type StatusHangman = 'waitting word' | 'waitting letter' | 'stoped';
 
@@ -13,6 +14,7 @@ export interface Hangman {
   lifes: number;
   playerWord: string;
   playerLetter: string;
+  isFinish: boolean;
 }
 export type HangmanInstance = Types.Subdocument<Types.ObjectId> & Hangman;
 
@@ -35,6 +37,20 @@ export class HangmanClass {
 
   playerLetter = '';
 
+  isFinish = false;
+
+  public reset() {
+    this.status = 'waitting word';
+    this.lettersDisable = [];
+    this.letters = [];
+    this.secret = [];
+    this.turnLetter = 0;
+    this.lifes = 7;
+    this.playerWord = '';
+    this.playerLetter = '';
+    this.isFinish = false;
+  }
+
   public setSecret(word: string) {
     const w = word
       .replaceAll(/\s+/g, ' ')
@@ -43,45 +59,74 @@ export class HangmanClass {
       .toUpperCase();
 
     this.secret = w.split('');
-
     this.letters = w.replaceAll(/[A-Z]/g, '$').split('');
+    this.isFinish = false;
   }
 
-  public nextWordPlayer(players: Types.DocumentArray<Player>) {
+  public discoverdLetter(letter: string) {
+    let points = 0;
+    let add = 1;
+    if (!isVowel(letter)) {
+      add = 5;
+    }
+    for (let i = 0; i < this.secret.length; i += 1) {
+      if (this.secret[i] === letter) {
+        this.letters[i] = letter;
+        points += add;
+      }
+    }
+    if (points === 0) {
+      points = -3;
+      this.lifes -= 1;
+    }
+    console.log('discover try', this.letters, this.secret);
+    console.log(
+      'discover try chack',
+      this.lifes === 0,
+      this.letters.join('') === this.secret.join(''),
+    );
+    if (this.lifes === 0 || this.letters.join('') === this.secret.join('')) {
+      console.log('discoverd finish');
+
+      this.isFinish = true;
+    }
+    const code = letter.charCodeAt(0);
+    this.lettersDisable.push(code);
+    return points;
+  }
+
+  public nextWordPlayer(p: Types.DocumentArray<Player>) {
+    const players = p.slice(0);
     let i = this.turnWord;
     do {
-      if (i >= players.length) {
-        i = 0;
-      }
-      // console.log('test', i);
       const player = players[i];
-      i += 1;
       if (player.online) {
-        this.turnLetter = i;
+        this.turnWord = (i + 1) % players.length;
         this.playerWord = (player._id as Types.ObjectId).toString();
         return true;
+      }
+      i += 1;
+      if (i >= players.length) {
+        i = 0;
       }
     } while (i !== this.turnWord);
     this.status = 'stoped';
     return false;
   }
 
-  public nextLetterPlayer(players: Types.DocumentArray<Player>) {
+  public nextLetterPlayer(p: Types.DocumentArray<Player>) {
+    const players = p.slice(0);
     let i = this.turnLetter;
     do {
+      const player = players[i];
+      if (player.online && player.id !== this.playerWord) {
+        this.turnLetter = (i + 1) % players.length;
+        this.playerLetter = (player._id as Types.ObjectId).toString();
+        return true;
+      }
+      i += 1;
       if (i >= players.length) {
         i = 0;
-      }
-      // console.log('test', i);
-      const player = players[i];
-      i += 1;
-      if (player.online) {
-        const id = (player._id as Types.ObjectId).toString();
-        if (id !== this.playerWord) {
-          this.turnLetter = i;
-          this.playerLetter = id;
-          return true;
-        }
       }
     } while (i !== this.turnLetter);
     this.status = 'stoped';
@@ -99,4 +144,5 @@ export const HangmanSchema = new Schema<Hangman>({
   playerWord: String,
   playerLetter: String,
   status: String,
+  isFinish: { type: Boolean, default: false },
 });

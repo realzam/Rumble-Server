@@ -5,10 +5,7 @@ import { JWTPayload } from '../types/types';
 import RoomModel, { RoomInstance } from '../database/models/room';
 import { PlayerInstance, Player } from '../database/models/player';
 import { StatusHangman, HangmanClass } from '../database/models/hangman';
-// import { Hangman } from '../database/models/hangman';
 import { delay } from '../helpers/util';
-
-// type StatusRoom = Omit<Room, 'id' | 'isAvalible'>;
 
 type SocketStatusRoom = {
   players: Types.DocumentArray<Player>;
@@ -100,14 +97,20 @@ const ahorcadoSokect = async (
     }
   });
 
-  socket.on('start_word', async (word) => {
-    if (uid === room.gameData.playerWord) {
+  socket.on('start_word', async (word: string) => {
+    console.log('start_word', uid, room.gameData.playerWord);
+    const code = word.charCodeAt(0);
+    const exist = room.gameData.lettersDisable.includes(code);
+    if (uid === room.gameData.playerWord && !exist) {
       const hangman = Object.assign(
         new HangmanClass(),
         room.toObject().gameData,
       );
       hangman.setSecret(word);
-      hangman.nextLetterPlayer(room.players);
+      const anyOnline = hangman.nextLetterPlayer(room.players);
+      if (anyOnline) {
+        hangman.status = 'waitting letter';
+      }
       room.gameData.set(hangman);
       await room.save();
       emitStateRoom();
@@ -117,14 +120,90 @@ const ahorcadoSokect = async (
 
   socket.on('discover-letter', async (letter: string) => {
     console.log('discover-letter', letter);
+    if (uid === room.gameData.playerLetter) {
+      const hangman = Object.assign(
+        new HangmanClass(),
+        room.toObject().gameData,
+      );
+      const puntos = hangman.discoverdLetter(letter);
+      room.players[pos].points += puntos;
+
+      if (hangman.isFinish) {
+        if (hangman.lifes === 0) {
+          io.to(roomID)
+            .except(hangman.playerWord)
+            .emit('game_over', hangman.secret.join(''));
+          io.to(roomID)
+            .except(hangman.playerWord)
+            .emit('sound_game_over', hangman.secret.join(''));
+          io.to(hangman.playerWord).emit('winning_game');
+          io.to(hangman.playerWord).emit('sound_winning_game');
+        } else {
+          io.to(roomID)
+            .except(hangman.playerWord)
+            .emit('winning_game', hangman.secret.join(''));
+          io.to(roomID)
+            .except(hangman.playerWord)
+            .emit('sound_winning_game', hangman.secret.join(''));
+
+          io.to(hangman.playerWord).emit('game_over');
+          io.to(hangman.playerWord).emit('sound_game_over');
+        }
+
+        hangman.letters = hangman.secret;
+        room.gameData.set(hangman);
+        await room.save();
+        emitStateRoom();
+        emitStateHangman();
+        setTimeout(async () => {
+          hangman.reset();
+          hangman.nextWordPlayer(room.players);
+          room.gameData.set(hangman);
+          await room.save();
+          console.log('RESET ROOM', hangman);
+          emitStateRoom();
+          emitStateHangman();
+          io.to(hangman.playerWord).emit('input_word');
+        }, 8000);
+      } else {
+        hangman.nextLetterPlayer(room.players);
+        if (puntos === -3) {
+          io.to(roomID).emit('sound_error_letter');
+        } else {
+          io.to(roomID).emit('sound_correct_letter');
+        }
+        room.gameData.set(hangman);
+        await room.save();
+        emitStateRoom();
+        emitStateHangman();
+      }
+    }
   });
 
   socket.on('disconnect', async () => {
     changeStream.close();
     room.players[pos].online = false;
+    if (room.status === 'In game') {
+      const hangman = Object.assign(
+        new HangmanClass(),
+        room.toObject().gameData,
+      );
+      if (hangman.status === 'waitting word' && hangman.playerWord === uid) {
+        hangman.nextWordPlayer(room.players);
+      }
+      if (
+        // eslint-disable-next-line operator-linebreak
+        hangman.status === 'waitting letter' &&
+        hangman.playerLetter === uid
+      ) {
+        hangman.nextLetterPlayer(room.players);
+      }
+      room.gameData.set(hangman);
+    }
     await room.save();
-    console.log('disconnect');
     emitStateRoom();
+    emitStateHangman();
+    console.log('disconnect');
   });
 };
 

@@ -6,3 +6,7 @@ export const getNameSpace = (id: number): null | string => {
 export const delay = (time: number) =>
   // eslint-disable-next-line no-promise-executor-return
   new Promise((resolve) => setTimeout(resolve, time));
+
+export function isVowel(x: string) {
+  return /[AEIOU]/.test(x);
+}
